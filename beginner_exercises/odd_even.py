@@ -9,3 +9,12 @@ def odd_even():
         print(str(number) + ' is an even number.')
     else:
         print(str(number) + ' is an odd number.')
+
+def num_check():
+    """Take two numbers, check if first number is divisible by second number"""
+    num = int(input('Please enter the number you want to check: '))
+    check = int(input('Please enter the number you want to divide by: '))
+    if (num % check) is 0:
+        print('Yes, ' + str(num) + ' is divisible by ' + str(check) + '.')
+    else:
+        print('No, ' + str(num) + ' is not divisible by ' + str(check) + '.')
