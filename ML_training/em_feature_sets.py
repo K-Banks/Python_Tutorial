@@ -73,6 +73,11 @@ validation_targets = preprocess_targets(
     california_housing_dataframe.tail(validation_number)
 )
 
+def get_correlation():
+    correlation_dataframe = training_examples.copy()
+    correlation_dataframe["target"] = training_targets["median_house_value"]
+    correlation_dataframe.corr()
+
 def my_input_fn(features, targets, batch_size=1, shuffle=True, num_epochs=None):
     """Trains a linear regression model of multiple feature.
 
@@ -189,7 +194,7 @@ def train_model(learning_rate, steps, batch_size, training_examples, training_ta
   plt.plot(training_rmse, label="training")
   plt.plot(validation_rmse, label="validation")
   plt.legend()
-  plt.savefig('testmultiplefeatures.png')
+  plt.savefig('testminfeatures.png')
 
   print("Final RMSE (on training data): %0.2f" % training_root_mean_squared_error)
   print("Final RMSE on validation data: %0.2f" % validation_root_mean_squared_error)
@@ -211,3 +216,10 @@ def test(linear_regressor):
     )
 
     print("Test RMSE is: %0.2f" % root_mean_squared_error)
+
+# Get data with minimal features
+def get_minimal_features():
+    minimal_features = ["median_income"]
+    minimal_training_examples = training_examples[minimal_features]
+    minimal_validation_examples = validation_examples[minimal_features]
+    return minimal_training_examples, minimal_validation_examples
