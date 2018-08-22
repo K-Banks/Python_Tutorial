@@ -20,6 +20,9 @@ california_housing_dataframe = california_housing_dataframe.reindex(
     np.random.permutation(california_housing_dataframe.index)
 )
 
+# Define linear_regressor variable in larger scope for test function
+linear_regressor = None
+
 set_size = int(input("Please enter size of your training set (1-17000)"))
 validation_number = 17000 - set_size
 
@@ -195,3 +198,20 @@ def train_model(learning_rate, steps, batch_size, training_examples, training_ta
   print("Final RMSE on validation data: %0.2f" % validation_root_mean_squared_error)
 
   return linear_regressor
+
+# Test model with test dataset
+def test():
+    california_housing_test_data = pd.read_csv("https://download.mlcc.google.com/mledu-datasets/california_housing_test.csv", sep=",")
+    test_examples = preprocess_features(california_housing_test_data)
+    test_targets = preprocess_targets(california_housing_test_data)
+
+    predict_test_input_fn = lambda: my_input_fn(test_examples, test_targets["median_house_value"], num_epochs=1, shuffle=False)
+
+    test_predictions = linear_regressor.predict(input_fn=predict_test_input_fn)
+    test_predictions = np.array([item['predictions'][0] for item in test_predictions])
+
+    root_mean_squared_error = math.sqrt(
+        metrics.mean_squared_error(test_predictions, test_targets)
+    )
+
+    print("Test RMSE is: %0.2f" % root_mean_squared_error)
