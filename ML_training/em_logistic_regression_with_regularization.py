@@ -101,15 +101,76 @@ def my_input_fn(features, targets, batch_size=1, shuffle=True, num_epochs=None):
     features, labels = ds.make_one_shot_iterator().get_next()
     return features, labels
 
+def get_quantile_based_buckets(feature_values, num_buckets):
+    quantiles = feature_values.quantile(
+        [(i+1.)/(num_buckets + 1.) for i in range(num_buckets)]
+    )
+    return [quantiles[q] for q in quantiles.keys()]
+
 def construct_feature_columns():
     """Construct the TensorFlow Feature Columns.
 
     Returns:
         Set of feature columns
     """
-    return set([tf.feature_column.numeric_column(my_feature) for my_feature in training_examples])
 
-def train_model(learning_rate, steps, batch_size, training_examples, training_targets, validation_examples, validation_targets):
+    bucketized_households = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("households"), boundaries=get_quantile_based_buckets(training_examples["households"], 10)
+    )
+    bucketized_longitude = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("longitude"), boundaries=get_quantile_based_buckets(training_examples["longitude"], 50)
+    )
+    bucketized_latitude = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("latitude"), boundaries=get_quantile_based_buckets(training_examples["latitude"], 50)
+    )
+    bucketized_housing_median_age = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("housing_median_age"), boundaries=get_quantile_based_buckets(training_examples["housing_median_age"], 10)
+    )
+    bucketized_total_rooms = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("total_rooms"), boundaries=get_quantile_based_buckets(training_examples["total_rooms"], 10)
+    )
+    bucketized_total_bedrooms = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("total_bedrooms"), boundaries=get_quantile_based_buckets(training_examples["total_bedrooms"], 10)
+    )
+    bucketized_population = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("population"), boundaries=get_quantile_based_buckets(training_examples["population"], 10)
+    )
+    bucketized_median_income = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("median_income"), boundaries=get_quantile_based_buckets(training_examples["median_income"], 10)
+    )
+    bucketized_rooms_per_person = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column("rooms_per_person"), boundaries=get_quantile_based_buckets(training_examples["rooms_per_person"], 10)
+    )
+
+    long_x_lat = tf.feature_column.crossed_column(
+        set([bucketized_longitude, bucketized_latitude]), hash_bucket_size=1000
+    )
+
+    feature_columns = set([
+        long_x_lat,
+        bucketized_longitude,
+        bucketized_latitude,
+        bucketized_housing_median_age,
+        bucketized_total_rooms,
+        bucketized_total_bedrooms,
+        bucketized_population,
+        bucketized_households,
+        bucketized_median_income,
+        bucketized_rooms_per_person
+    ])
+
+    return feature_columns
+
+# Model Size
+def model_size(estimator):
+    variables = estimator.get_variable_names()
+    size = 0
+    for variable in variables:
+        if not any(x in variable for x in ['global_step', 'centered_bias_weight', 'bias_weight', 'Ftrl']):
+            size += np.count_nonzero(estimator.get_variable_value(variable))
+    return size
+
+def train_model(learning_rate, regularization_strength, steps, batch_size, training_examples, training_targets, validation_examples, validation_targets):
   """Trains a linear classification model.
 
   In addition to training, this function also prints trainig progress information, as well as a plot of the training and validation loss over time.
@@ -136,7 +197,7 @@ def train_model(learning_rate, steps, batch_size, training_examples, training_ta
   steps_per_period = steps / periods
 
   # Create a linear regressor object. USING FTRL Optimizer
-  my_optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+  my_optimizer = tf.train.FtrlOptimizer(learning_rate=learning_rate, l1_regularization_strength=regularization_strength)
   my_optimizer = tf.contrib.estimator.clip_gradients_by_norm(my_optimizer, 5.0)
   linear_classifier = tf.estimator.LinearClassifier(
       feature_columns=construct_feature_columns(),
@@ -189,10 +250,13 @@ def train_model(learning_rate, steps, batch_size, training_examples, training_ta
   plt.plot(training_log_losses, label="training")
   plt.plot(validation_log_losses, label="validation")
   plt.legend()
-  plt.savefig('testlogisticregression.png')
+  plt.savefig('testlogisticregressionwithRegularization.png')
+  plt.close()
 
   print("Final LogLoss (on training data): %0.2f" % training_log_losses[9])
   print("Final LogLoss on validation data: %0.2f" % validation_log_losses[9])
+  print("Model size: ", model_size(linear_classifier))
+  get_metrics(linear_classifier)
   return linear_classifier
 
 # Function for printing and saving model metrics
@@ -211,4 +275,4 @@ def get_metrics(linear_classifier):
     plt.plot(false_positive_rate, true_positive_rate, label="our model")
     plt.plot([0,1], [0,1], label="random classifier")
     plt.legend(loc=2)
-    plt.savefig('logisticregressionAUC.png')
+    plt.savefig('logisticregressionAUCwithRegularization.png')
