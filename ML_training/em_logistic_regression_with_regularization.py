@@ -190,7 +190,6 @@ def train_model(learning_rate, steps, batch_size, training_examples, training_ta
   plt.plot(validation_log_losses, label="validation")
   plt.legend()
   plt.savefig('testlogisticregression.png')
-  plt.close()
 
   print("Final LogLoss (on training data): %0.2f" % training_log_losses[9])
   print("Final LogLoss on validation data: %0.2f" % validation_log_losses[9])
